@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Browser inference demo</title>
+
+    <style>
+        #features {
+            width: 50%;
+            font-size: 18px;
+        }
+
+        #results {
+            font-family: monospace;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body>
+    <h1></h1>
+
+    <p>
+        <input type="file" accept="image/*" id="imageUpload">
+        <button id="cameraButton">Capture from Camera</button>
+        <video id="cameraStream" width="320" height="240" autoplay></video>
+        <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+        <img id="inputImage" width="320" height="240">
+    </p>
+    <p>
+        <button id="run-inference">Run inference</button>
+    </p>
+    <p id="results"></p>
+
+    <script src="edge-impulse-standalone.js"></script>
+    <script src="run-impulse.js"></script>
+    <script>
+        (async () => {
+            var classifier = new EdgeImpulseClassifier();
+            await classifier.init();
+
+            let project = classifier.getProjectInfo();
+            document.querySelector('h1').textContent = project.owner + ' / ' + project.name + ' (version ' + project.deploy_version + ')';
+
+            document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+            document.getElementById('cameraButton').addEventListener('click', startCamera);
+
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const inputImage = document.getElementById('inputImage');
+
+            function handleImageUpload(event) {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    inputImage.src = e.target.result;
+                    inputImage.onload = function() {
+                        ctx.drawImage(inputImage, 0, 0, canvas.width, canvas.height);
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function startCamera() {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        const video = document.getElementById('cameraStream');
+                        video.srcObject = stream;
+                        video.play();
+                    })
+                    .catch(function(err) {
+                        console.error("Error accessing the camera: " + err);
+                    });
+            }
+
+            function getImageDataFromCanvas() {
+                console.log("iameg data:", ctx.getImageData(0, 0, canvas.width, canvas.height));
+                return ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+
+            function preprocessImageData(imageData) {
+                const width = 96; // Target width
+                const height = 96; // Target height
+                const resizedCanvas = document.createElement('canvas');
+                const resizedCtx = resizedCanvas.getContext('2d');
+
+                resizedCanvas.width = width;
+                resizedCanvas.height = height;
+
+                // Draw the image on the resized canvas
+                resizedCtx.drawImage(canvas, 0, 0, width, height);
+
+                // Get the resized image data
+                const resizedImageData = resizedCtx.getImageData(0, 0, width, height).data;
+
+                // Normalize and reshape the image data
+                const features = [];
+                for (let i = 0; i < resizedImageData.length; i += 4) {
+                    // Convert to grayscale if needed: (R + G + B) / 3
+                    const grayscale = (resizedImageData[i] + resizedImageData[i + 1] + resizedImageData[i + 2]) / 3;
+                    // Normalize the pixel value (0-255) to (0-1)
+                    features.push(grayscale / 255);
+                }
+                console.log('Preprocessed Features:', features);
+                return features;
+            }
+
+            document.querySelector('#run-inference').onclick = async () => {
+                try {
+                    // Get and preprocess the image data
+                    const imageData = getImageDataFromCanvas();
+                    const features = preprocessImageData(imageData);
+                
+                    // Run inference using the Edge Impulse model
+                    const res = await classifier.classify(features); // Await here to get the result
+                    
+                    document.querySelector('#results').textContent = JSON.stringify(res, null, 4);
+                }
+                catch (ex) {
+                    alert('Failed to classify: ' + (ex.message || ex.toString()));
+                }
+            };
+        })();
+    </script>
+</body>
+</html>
