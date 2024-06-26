@@ -4,13 +4,15 @@
 <body>
     <div id="main">
   
-    
-  <canvas id="myGrowCanvas" style="position:relative; left:0px; top:0px; width:3000px; height:2000px; " ></canvas> <br>  
+  <canvas id="myColorCanvas"></canvas><br>  
+  <canvas id="myGrowCanvas"></canvas> <br>  
       
   <table border=1 style="position:absolute; left:800px; top:0px;  ">
   <tr><td>
     
-  Version 0.8.5 <br>
+  Version 0.1.0. SportSense - <a href="https://tiilt.northwestern.edu/" target="_blank">tiilt Lab at Northwestern University</a><br>
+  <a href="https://github.com/ayush-s-arora/" target="_blank">Ayush Shukla Arora</a><br>
+  Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/blob/main/public/edge-models/test-anger/index.html" target="_blank">Rocksetta</a> <br>
     
     
   <div id="description">
@@ -31,7 +33,7 @@
           Use data from chart below <input type=checkbox id="myCheckbox01"><br>
           Camera: <select id="mySelect" onChange="setupPage()"><option  value="user">Front Camera<option selected="selected" value="environment">Rear Camera</select><br>
           Default is not mirrored:  see canvas: scaleX(-1);  transform: scaleX(-1);<br>
-          Default GRAYSCALE, Check to use Color <input type=checkbox id="myCheckboxColor"><br>
+          Default COLOR, uncheck to use GRAYSCALE <input type=checkbox id="myCheckboxColor"><br>
         
     </td></tr></table>
       
@@ -64,6 +66,7 @@
   let myFrequencyMs = document.getElementById('myText01').value
   let myWidthHeightSquare = document.getElementById('myWidthHeight').value
     
+  document.getElementById('myCheckboxColor').checked= true;
     
     function RGBAToHex(r,g,b,a) {
     r = r.toString(16);
@@ -158,7 +161,7 @@
     let myX = (640-myWidthHeightSquare)/2
     let myY = (480-myWidthHeightSquare)/2
     let ImageData2;
-    
+        
       if (document.getElementById('myCheckboxColor').checked ) {
         ImageData2 =  ctxColor.getImageData(myX, myY, myWidthHeightSquare, myWidthHeightSquare);  // grab COLOR image x,y,width,height
       }   else  {
@@ -171,7 +174,7 @@
     ctxOnTop.putImageData(ImageData2, myX,  myY   );  //put image near center
       
     ctxGrow.putImageData(ImageData2,  0, 0);  // try to grow the image 
-      
+      1
       
    // alert(RGBAToHex(ImageData2.data[0], ImageData2.data[1], ImageData2.data[2], ImageData2.data[3]) )  
     let pixels2 = ImageData2.data
