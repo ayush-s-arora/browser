@@ -1,0 +1,441 @@
+<!-- Adapted from https://github.com/hpssjellis/my-examples-of-edge-impulse/blob/main/public/edge-models/test-anger/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SportSense Detection: Image Upload</title>
+  <style>
+    html {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+    }
+    .header {
+      position: absolute;
+      top: 5px;
+      display: block;
+      overflow: none;
+    }
+    footer {
+      position: fixed;
+      bottom: 5px;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      background-color: #4E2A84;
+      color: white;
+    }
+    footer a {
+      color: white;
+    }
+    .header img {
+      max-width: 15%;
+      height: auto;
+      cursor: pointer;
+    }
+    .main {
+      margin-top: 80px;
+      align-items: center;
+    }
+    .infotable {
+      margin-top: 80px;
+    }
+  </style>
+  <div class="header">
+    <img id="logo" class="logo" src="logo.png" onclick="window.open('https://tiilt.northwestern.edu/', '_blank');" />
+  </div>
+  <div style = "color: #4E2A84; font-size: 32px; text-align: center; font-weight: 900;"> UNDER CONSTRUCTION</div>
+<div class="main">
+  <body>
+    <div>
+  
+
+  <canvas id="fullCanvas" width="640" height="480" style="display:none;"></canvas>
+  <img id="fullImage" width="640" height="480"></img>
+  <canvas id="scaledCanvas" width="96" height="96" style="display:none;"></canvas>
+  <img id="scaledImage"></img> <br>  
+      
+  <table class = "infotable" border=1 style="position:absolute; left:800px; top:0px;  ">
+  <tr><td>
+    
+  Version 0.3.0. SportSense - <a href="https://tiilt.northwestern.edu/" target="_blank">tiilt Lab at Northwestern University</a><br>
+  <a href="https://github.com/ayush-s-arora/" target="_blank">Ayush Shukla Arora</a><br>
+  Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/blob/main/public/edge-models/test-anger/index.html" target="_blank">Rocksetta</a> <br>
+    
+    
+  <div id="description">
+          <div id="description-title" style="font-size:30px">Basketball/Rim Image Detection</div>
+        Detection dimensions (Square, determined upon impulse creation): <input type=text value="96" size=5 id="myWidthHeight" READONLY>  <br>    
+  
+        
+          <div id="myDiv01" style="font-size:30px">...</div>
+          Image: <input type="file" accept="image/*" id="imageUpload"><br>
+          Default is not mirrored:  see canvas: scaleX(-1);  transform: scaleX(-1);<br>
+          Default COLOR, uncheck to use GRAYSCALE <input type=checkbox id="myCheckboxColor"><br>
+          <button id="run-inference">Run inference</button>
+        
+    </td></tr></table>
+      
+          
+  
+        
+         <textarea id="myTextArea01" style="display:none; " rows=10 cols=70>...</textarea> <br> <br> <br>
+        
+     
+      <canvas id="myOnTopOutput" style="display:none; background-color:white; border:black 3px solid;" ></canvas>  <!--  position:absolute; top:0; left:0;   -->  
+            
+      <canvas id="fullCanvas" style="display:none; " ></canvas>   <br>
+
+      <canvas id="scaledCanvas" style="display:none; " ></canvas>
+    
+      </div>
+        
+  </body>
+  </div>
+  <footer class="footer">Click <a href = 'camera_detection.html'>here</a> to switch to camera detection mode!</footer>
+
+   <script src="edge-impulse-standalone.js"></script>
+  
+  
+  <script> 
+  
+  let myOutputString = ''
+  let scaledSquareDimension = document.getElementById('myWidthHeight').value
+    
+  document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+  document.getElementById('myCheckboxColor').checked= true;
+
+  
+  const fullImage = document.getElementById('fullImage');
+  const fullCanvas = document.getElementById('fullCanvas');
+  const fullctx = fullCanvas.getContext('2d');
+  const scaledImage = document.getElementById('scaledImage');
+
+    
+    function RGBAToHex(r,g,b,a) {
+    r = r.toString(16);
+    g = g.toString(16);
+    b = b.toString(16);
+  
+    if (r.length == 1)
+      r = "0" + r;
+    if (g.length == 1)
+      g = "0" + g;
+    if (b.length == 1)
+      b = "0" + b;
+  
+   // return "#" + r + g + b + ", " ;
+    return "0x" + r + g + b + ", " ;
+         
+  }
+        
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            fullImage.src = e.target.result;
+            fullImage.onload = function() {
+                fullctx.drawImage(fullImage, 0, 0, fullCanvas.width, fullCanvas.height);
+            };
+            scaledImage.src = scaleImageData(fullImage, 96, 96);
+            scaledImage.onload = function() {
+              scaledCtx.drawImage(scaledImage, 0, 0, scaledCanvas.width, scaledCanvas.height);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    
+   const renderPrediction = async function(){   
+  
+     document.fullctx.clearRect(0, 0, document.ctx.canvas.width, document.ctx.canvas.width);
+   
+     document.fullctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+     fullctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+    
+    
+    let imgData = document.fullctx.getImageData(0, 0, document.fullctx.canvas.width, document.fullctx.canvas.height);
+    let pixels = imgData.data;
+    for (var i = 0; i < pixels.length; i += 4) {
+  
+      let lightness = parseInt((pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3);
+  
+      pixels[i] = lightness;
+      pixels[i + 1] = lightness;
+      pixels[i + 2] = lightness;
+    }
+     
+    document.ctx.putImageData(imgData, 0, 0);       
+     
+  }; 
+    
+  function scaleImageData(imagedata, targetWidth, targetHeight) {
+      const offScreenCanvas = document.createElement('canvas');
+      offScreenCanvas.width = imagedata.width;
+      offScreenCanvas.height = imagedata.height;
+      const offScreenCtx = offScreenCanvas.getContext('2d');
+  
+      offScreenCtx.putImageData(imagedata, 0, 0);
+  
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = targetWidth;
+      scaledCanvas.height = targetHeight;
+      const scaledCtx = scaledCanvas.getContext('2d');
+  
+      scaledCtx.drawImage(offScreenCanvas, 0, 0, targetWidth, targetHeight);
+  
+      return scaledCtx.getImageData(0, 0, targetWidth, targetHeight);
+  }
+  
+    
+  const myPictureNow  = async function(){    
+    
+     var classifier = new EdgeImpulseClassifier();
+     await classifier.init(); 
+      
+     let props = classifier.getProperties();
+      
+     scaledSquareDimension = props.input_width 
+     document.getElementById('myWidthHeight').value = props.input_width
+      
+  
+  //  console.log(props.input_width)    //  props.sensor   props.frequency  props.frame_sample_count   props.input_width   props.input_height
+     
+      
+    ctxOnTop.clearRect(0, 0, canvasOnTop.width, canvasOnTop.height); 
+      
+    let ImageData2;
+        
+      if (document.getElementById('myCheckboxColor').checked ) {
+        ImageData2 =  scaleImageData(ctxFull.getImageData(0, 0, videoWidth, videoHeight), scaledSquareDimension, scaledSquareDimension);  // grab and scale COLOR image
+      }   else  {
+        ImageData2 = scaleImageData(document.ctx.getImageData(0, 0, videoWidth, videoHeight), scaledSquareDimension, scaledSquareDimension);  // grab and scale GRAYSCALE image
+    
+      }
+  
+    // ctxOnTop.putImageData(ImageData2, 0,  0);  //put image near center
+      
+    ctxScaled.putImageData(ImageData2,  0, 0);  // try to grow the image 
+      1
+      
+   // alert(RGBAToHex(ImageData2.data[0], ImageData2.data[1], ImageData2.data[2], ImageData2.data[3]) )  
+    let pixels2 = ImageData2.data
+    myOutputString = ''
+       
+     
+     if (document.getElementById('myCheckbox01').checked ) {
+       //console.log('checked')
+       //console.log(document.getElementById('myCheckbox01').checked)
+       myOutputString = document.getElementById('myTextArea01').value  
+     
+     } else { 
+      
+       for (var i = 0; i < pixels2.length; i += 4) {
+          myOutputString += RGBAToHex(ImageData2.data[i], ImageData2.data[i+1], ImageData2.data[i+2], ImageData2.data[i+3])
+       }
+    
+        // console.log('myOutputString')
+        // console.log(myOutputString)
+        // document.getElementById('myTextArea01').value= JSON.stringify(myOutputString, 2, '\n')
+        // myOutputString = myOutputString.substring(1);  // remove first "
+        myOutputString = myOutputString.substring(0, myOutputString.length - 2);  // remove last ,"
+        document.getElementById('myTextArea01').value = myOutputString
+      }
+  
+      
+       results = await classifier.classify( myOutputString.split(', ')   );      //, true  can set debug true auto shows in console
+      
+      
+    let myTemp = ''
+    myTemp =  '<table border=1  style="font-size:30px">'
+      
+    let myBestClassificationNumber = -1  
+    let myBestClassificationValue = 0.25   // lowest best allowable value 
+    for (let j = 0;  j < results.results.length; j++){  
+        if (results.results[j].value > myBestClassificationValue ){
+             myBestClassificationNumber = j;                      // find the biggest array value
+             myBestClassificationValue = results.results[j].value  
+          }
+    }
+      
+    
+    //////////////////////////////////////////// Where the magic happens //////////////////////////////////////////////////////////////////////////////
+    
+    
+    
+      
+    for (let i = 0;  i < results.results.length; i++){  
+      if (myBestClassificationNumber == i){   // check if this is the best one
+             myTemp += '<tr><td>'+ results.results[i].label + '</td><td><font style=\'color:white; background-color:#4E2A84;\'>' + results.results[i].value.toFixed(3) +'</font></td></tr>'            
+          } else {
+             myTemp += '<tr><td>'+ results.results[i].label + '</td><td>' + results.results[i].value.toFixed(3) +'</td></tr>'
+          }
+     }  
+         
+    myTemp += '</table>'   
+    //console.log(results) 
+    
+      
+      
+    document.getElementById('myDiv01').innerHTML = ' results.anomaly: '+ results.anomaly + '<br>' +  myTemp
+  }
+    
+    
+    
+    
+  // const setupPage = async function(){   
+    
+  //   videoWidth = video.videoWidth;
+  //   videoHeight = video.videoHeight;
+  //   console.log('videoWidth')
+  //   console.log(videoWidth)
+  //   console.log('videoHeight')
+  //   console.log(videoHeight)
+    
+  //   video.width = videoWidth;
+  //   video.height = videoHeight;
+  
+  
+  //   canvasOnTop = document.getElementById('myOnTopOutput');
+  //   canvasOnTop.width = videoWidth;
+  //   canvasOnTop.height = videoHeight;
+  //   ctxOnTop = canvasOnTop.getContext('2d'); 
+    
+    
+    
+  //   canvasFull = document.getElementById('fullCanvas');
+  //   canvasFull.width = videoWidth;
+  //   canvasFull.height = videoHeight;
+  //   ctxFull = canvasFull.getContext('2d'); 
+    
+      
+  //   canvasGrow = document.getElementById('scaledCanvas');
+  //   canvasGrow.width = scaledSquareDimension;
+  //   canvasGrow.height = scaledSquareDimension;
+  //   ctxScaled = canvasGrow.getContext('2d'); 
+    
+  //   fullCanvas = document.getElementById('output');
+  //   fullCanvas.width = videoWidth;
+  //   fullCanvas.height = videoHeight;
+  //   document.ctx = fullCanvas.getContext('2d'); 
+    
+  //  // setInterval(function(){ alert("Hello"); }, 3000);
+  //  // myTimer01 = setInterval('myPictureNow', 3000); 
+  //   renderPrediction();
+    
+    
+  // };
+  
+    
+  // main program!
+  // setupPage();
+  
+     
+  document.querySelector('#run-inference').onclick = async () => {
+        try {
+            // Get and preprocess the image data
+            renderPrediction();
+        
+            // Run inference using the Edge Impulse model
+            const res = await classifier.classify(features); // Await here to get the result
+            
+            document.querySelector('#results').textContent = JSON.stringify(res, null, 4);
+        }
+        catch (ex) {
+            alert('Failed to classify: ' + (ex.message || ex.toString()));
+        }
+    };
+  
+  </script>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <script>
+    
+   // From the old run_impulse.js file 
+    
+  // Classifier module
+  let classifierInitialized = false;
+  Module.onRuntimeInitialized = function() {
+      classifierInitialized = true;
+  };
+  
+  class EdgeImpulseClassifier {
+      _initialized = false;
+   
+    
+    // https://forum.edgeimpulse.com/t/wasm-sound-acceleration-camera-demos/1611/7
+        getProperties() {
+          return Module.get_properties();
+      }
+  
+      init() {
+          if (classifierInitialized === true) return Promise.resolve();
+  
+          return new Promise((resolve) => {
+              Module.onRuntimeInitialized = () => {
+                  resolve();
+                  classifierInitialized = true;
+              };
+          });
+      }
+  
+      classify(rawData, debug = false) {
+          if (!classifierInitialized) throw new Error('Module is not initialized');
+  
+          const obj = this._arrayToHeap(rawData);
+          let ret = Module.run_classifier(obj.buffer.byteOffset, rawData.length, debug);
+          Module._free(obj.ptr);
+  
+          if (ret.result !== 0) {
+              throw new Error('Classification failed (err code: ' + ret.result + ')');
+          }
+  
+  
+          let jsResult = {
+              anomaly: ret.anomaly,
+              results: []
+          };
+  
+          // if ret.size is a function, then this is a new module. Use this API call to prevent leaks.
+          // the old API (calling via ret.classification) is still there for backwards compatibility, but leaks some memory
+          if (typeof ret.size === 'function') {
+              for (let cx = 0; cx < ret.size(); cx++) {
+                  let c = ret.get(cx);
+                  jsResult.results.push({ label: c.label, value: c.value });
+                  c.delete();
+              }
+          }
+          else {
+              for (let cx = 0; cx < ret.classification.size(); cx++) {
+                  let c = ret.classification.get(cx);
+                  jsResult.results.push({ label: c.label, value: c.value });
+                  c.delete();
+              }
+          }
+  
+          ret.delete();
+  
+          return jsResult;
+      }
+  
+      _arrayToHeap(data) {
+          let typedArray = new Float32Array(data);
+          let numBytes = typedArray.length * typedArray.BYTES_PER_ELEMENT;
+          let ptr = Module._malloc(numBytes);
+          let heapBytes = new Uint8Array(Module.HEAPU8.buffer, ptr, numBytes);
+          heapBytes.set(new Uint8Array(typedArray.buffer));
+          return { ptr: ptr, buffer: heapBytes };
+      }
+  }
+    
+  </script>
