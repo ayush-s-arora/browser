@@ -4,13 +4,13 @@
 <body>
   <div id="main">
 
-<canvas id="myColorCanvas"></canvas><br>  
-<canvas id="myGrowCanvas"></canvas> <br>  
+<canvas id="fullCanvas"></canvas><br>  
+<canvas id="scaledCanvas"></canvas> <br>  
     
 <table border=1 style="position:absolute; left:800px; top:0px;  ">
 <tr><td>
   
-Version 0.1.0. SportSense - <a href="https://tiilt.northwestern.edu/" target="_blank">tiilt Lab at Northwestern University</a><br>
+Version 0.2.0. SportSense - <a href="https://tiilt.northwestern.edu/" target="_blank">tiilt Lab at Northwestern University</a><br>
 <a href="https://github.com/ayush-s-arora/" target="_blank">Ayush Shukla Arora</a><br>
 Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/blob/main/public/edge-models/test-anger/index.html" target="_blank">Rocksetta</a> <br>
   
@@ -26,11 +26,11 @@ Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/
              clearInterval(myTimer01)
             myTimer01 = setInterval(myPictureNow, myFrequencyMs);
           }"><br>
-      (square) width/height: <input type=text value="96" size=5 id="myWidthHeight" READONLY>  <br>    
+      Detection dimensions (Square, determined upon impulse creation): <input type=text value="96" size=5 id="myWidthHeight" READONLY>  <br>    
 
       
         <div id="myDiv01" style="font-size:30px">...</div>
-        Use data from chart below <input type=checkbox id="myCheckbox01"><br>
+        Freeze chart <input type=checkbox id="myCheckbox01"><br>
         Camera: <select id="mySelect" onChange="setupPage()"><option  value="user">Front Camera<option selected="selected" value="environment">Rear Camera</select><br>
         Default is not mirrored:  see canvas: scaleX(-1);  transform: scaleX(-1);<br>
         Default COLOR, uncheck to use GRAYSCALE <input type=checkbox id="myCheckboxColor"><br>
@@ -49,7 +49,7 @@ Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/
     
     <canvas id="output" style="display:none; " ></canvas>  
     
-    <canvas id="myColorCanvas" style="display:none; " ></canvas>   <br>
+    <canvas id="fullCanvas" style="display:none; " ></canvas>   <br>
   
     </div>
       
@@ -64,7 +64,7 @@ Adapted from <a href="https://github.com/hpssjellis/my-examples-of-edge-impulse/
 let myTimer01 = 0;
 let myOutputString = ''
 let myFrequencyMs = document.getElementById('myText01').value
-let myWidthHeightSquare = document.getElementById('myWidthHeight').value
+let scaledSquareDimension = document.getElementById('myWidthHeight').value
   
 document.getElementById('myCheckboxColor').checked= true;
   
@@ -118,7 +118,7 @@ const setupCamera = async function(){
  
  
    document.ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
-   ctxColor.drawImage(video, 0, 0, videoWidth, videoHeight);
+   ctxFull.drawImage(video, 0, 0, videoWidth, videoHeight);
   
   
   let imgData = document.ctx.getImageData(0, 0, document.ctx.canvas.width, document.ctx.canvas.height);
@@ -140,7 +140,24 @@ const setupCamera = async function(){
    
 }; 
   
-  
+function scaleImageData(imagedata, targetWidth, targetHeight) {
+    const offScreenCanvas = document.createElement('canvas');
+    offScreenCanvas.width = imagedata.width;
+    offScreenCanvas.height = imagedata.height;
+    const offScreenCtx = offScreenCanvas.getContext('2d');
+
+    offScreenCtx.putImageData(imagedata, 0, 0);
+
+    const scaledCanvas = document.createElement('canvas');
+    scaledCanvas.width = targetWidth;
+    scaledCanvas.height = targetHeight;
+    const scaledCtx = scaledCanvas.getContext('2d');
+
+    scaledCtx.drawImage(offScreenCanvas, 0, 0, targetWidth, targetHeight);
+
+    return scaledCtx.getImageData(0, 0, targetWidth, targetHeight);
+}
+
   
 const myPictureNow  = async function(){    
   
@@ -149,7 +166,7 @@ const myPictureNow  = async function(){
     
    let props = classifier.getProperties();
     
-   myWidthHeightSquare = props.input_width 
+   scaledSquareDimension = props.input_width 
    document.getElementById('myWidthHeight').value = props.input_width
     
 
@@ -157,23 +174,20 @@ const myPictureNow  = async function(){
    
     
   ctxOnTop.clearRect(0, 0, canvasOnTop.width, canvasOnTop.height); 
-
+    
   let ImageData2;
       
     if (document.getElementById('myCheckboxColor').checked ) {
-      ctxColor.scale(props.input_width / videoWidth, props.input_width / videoHeight)
-      ImageData2 =  ctxColor.getImageData(0, 0, myWidthHeightSquare, myWidthHeightSquare);  // grab COLOR image x,y,width,height
+      ImageData2 =  scaleImageData(ctxFull.getImageData(0, 0, videoWidth, videoHeight), scaledSquareDimension, scaledSquareDimension);  // grab and scale COLOR image
     }   else  {
+      ImageData2 = scaleImageData(document.ctx.getImageData(0, 0, videoWidth, videoHeight), scaledSquareDimension, scaledSquareDimension);  // grab and scale GRAYSCALE image
   
-      document.ctx.scale(props.input_width / videoWidth, props.input_width / videoHeight)
-      ImageData2 = document.ctx.getImageData(0, 0, myWidthHeightSquare, myWidthHeightSquare);  // grab GRAYSCALE  image x,y,width,height
-      
     }
 
-  ctxOnTop.putImageData(ImageData2, 0,  0   );  //put image near center
+  // ctxOnTop.putImageData(ImageData2, 0,  0);  //put image near center
     
-  ctxGrow.putImageData(ImageData2,  0, 0);  // try to grow the image 
-
+  ctxScaled.putImageData(ImageData2,  0, 0);  // try to grow the image 
+    1
     
  // alert(RGBAToHex(ImageData2.data[0], ImageData2.data[1], ImageData2.data[2], ImageData2.data[3]) )  
   let pixels2 = ImageData2.data
@@ -263,16 +277,16 @@ const setupPage = async function(){
   
   
   
-  canvasColor = document.getElementById('myColorCanvas');
-  canvasColor.width = videoWidth;
-  canvasColor.height = videoHeight;
-  ctxColor = canvasColor.getContext('2d'); 
+  canvasFull = document.getElementById('fullCanvas');
+  canvasFull.width = videoWidth;
+  canvasFull.height = videoHeight;
+  ctxFull = canvasFull.getContext('2d'); 
   
     
-  canvasGrow = document.getElementById('myGrowCanvas');
-  canvasGrow.width = videoWidth;
-  canvasGrow.height = videoHeight;
-  ctxGrow = canvasGrow.getContext('2d'); 
+  canvasGrow = document.getElementById('scaledCanvas');
+  canvasGrow.width = scaledSquareDimension;
+  canvasGrow.height = scaledSquareDimension;
+  ctxScaled = canvasGrow.getContext('2d'); 
   
   canvas = document.getElementById('output');
   canvas.width = videoWidth;
